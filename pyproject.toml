@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rlbo-acquisition"
+version = "0.1.0"
+description = "Reinforcement learning for pool-based Bayesian optimization"
+requires-python = ">=3.9"
+dependencies = [
+    "gymnasium>=0.29",
+    "numpy>=1.23",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,87 @@
+import unittest
+
+import gymnasium as gym
+import numpy as np
+from gymnasium.utils.env_checker import check_env
+
+from rlbo import PoolOptimizationEnv
+
+
+class PoolOptimizationEnvTests(unittest.TestCase):
+    def setUp(self):
+        self.pool_size = 60
+        self.features = np.arange(self.pool_size * 2, dtype=np.float32).reshape(
+            self.pool_size, 2
+        )
+        self.labels = 1000.0 + np.arange(self.pool_size, dtype=np.float64)
+        self.provider_calls = []
+        self.env = PoolOptimizationEnv(
+            features=self.features,
+            labels=self.labels,
+            candidate_provider=self.candidate_provider,
+            observation_size=2,
+            initial_points=3,
+            budget=30,
+            shortlist_size=20,
+        )
+
+    def candidate_provider(
+        self,
+        evaluated_indices,
+        observed_targets,
+        available_indices,
+        candidate_features,
+        evaluated_features,
+    ):
+        self.provider_calls.append((evaluated_indices.copy(), observed_targets.copy()))
+        scores = candidate_features[:, 0].astype(np.float64)
+        distances = np.linalg.norm(
+            candidate_features[:, None, :] - evaluated_features[None, :, :], axis=2
+        ).min(axis=1)
+        return np.column_stack([scores, distances]), scores
+
+    def test_budget_shortlist_and_reward_contract(self):
+        observation, reset_info = self.env.reset(
+            seed=7, options={"initial_indices": [0, 1, 2]}
+        )
+        self.assertTrue(self.env.observation_space.contains(observation))
+        self.assertEqual(observation["candidates"].shape, (20, 2))
+        self.assertEqual(observation["budget_fraction"].tolist(), [1.0])
+
+        initial_indices = reset_info["initial_indices"]
+        initial_best = float(np.max(self.labels[initial_indices]))
+        evaluated = set(initial_indices.tolist())
+        total_reward = 0.0
+
+        for step_number in range(30):
+            observation, reward, terminated, truncated, info = self.env.step(0)
+            selected_index = info["selected_index"]
+            self.assertEqual(selected_index, info["shortlist_indices"][0])
+            self.assertNotIn(selected_index, evaluated)
+            evaluated.add(selected_index)
+            total_reward += reward
+            self.assertEqual(reward, info["raw_improvement"])
+            self.assertFalse(truncated)
+            self.assertEqual(terminated, step_number == 29)
+            self.assertTrue(self.env.observation_space.contains(observation))
+
+        final_best = float(np.max(self.labels[list(evaluated)]))
+        self.assertEqual(len(evaluated), 33)
+        self.assertAlmostEqual(total_reward, final_best - initial_best)
+        self.assertEqual(observation["budget_fraction"].tolist(), [0.0])
+
+        for indices, observed_targets in self.provider_calls:
+            self.assertEqual(len(indices), len(observed_targets))
+            np.testing.assert_array_equal(observed_targets, self.labels[indices])
+
+    def test_duplicate_initial_indices_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "distinct valid"):
+            self.env.reset(options={"initial_indices": [1, 1, 2]})
+
+    def test_gymnasium_api(self):
+        self.assertIsInstance(self.env, gym.Env)
+        check_env(self.env, skip_render_check=True)
+
+
+if __name__ == "__main__":
+    unittest.main()
