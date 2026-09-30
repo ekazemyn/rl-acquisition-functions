@@ -8,6 +8,7 @@ Use reinforcement learning to choose evaluations in pool-based Bayesian optimiza
 notebooks/results.ipynb   Results tables, regret curves, and interpretation
 src/rlbo/                 Reusable experiment code
   environment.py          Pool-based Gymnasium environment
+  datasets.py             Dataset loading and reproducible pool sampling
 tests/                    Automated checks for experiment components
 pyproject.toml            Package metadata and runtime dependencies
 ```
@@ -25,4 +26,4 @@ python -m unittest discover -s tests -v
 
 ## Current status
 
-The pool environment and its synthetic contract tests are implemented. Dataset loading, surrogate and acquisition strategies, PPO training, and benchmark results are still to come. The planned training datasets are Concrete Compressive Strength and Superconductivity; California Housing is reserved for held-out evaluation.
+The pool environment and reproducible dataset preparation are implemented. Install dataset-fetching dependencies with `python -m pip install -e .[data]`. Surrogate and acquisition strategies, PPO training, and benchmark results are still to come. The planned training datasets are Concrete Compressive Strength and Superconductivity; California Housing is reserved for held-out evaluation.

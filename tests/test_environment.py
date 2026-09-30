@@ -5,6 +5,7 @@ import numpy as np
 from gymnasium.utils.env_checker import check_env
 
 from rlbo import PoolOptimizationEnv
+from rlbo.datasets import _to_tabular_dataset, sample_pool, sample_pool_indices
 
 
 class PoolOptimizationEnvTests(unittest.TestCase):
@@ -81,6 +82,36 @@ class PoolOptimizationEnvTests(unittest.TestCase):
     def test_gymnasium_api(self):
         self.assertIsInstance(self.env, gym.Env)
         check_env(self.env, skip_render_check=True)
+
+
+class DatasetPreparationTests(unittest.TestCase):
+    def setUp(self):
+        self.dataset = _to_tabular_dataset(
+            "synthetic",
+            np.array([[0.0, 1.0], [2.0, 3.0], [np.nan, 4.0], [6.0, 7.0]]),
+            np.array([[10.0], [11.0], [12.0], [np.inf]]),
+            "synthetic test fixture",
+        )
+
+    def test_nonfinite_rows_are_removed_and_arrays_aligned(self):
+        self.assertEqual(self.dataset.features.shape, (2, 2))
+        np.testing.assert_array_equal(self.dataset.targets, [10.0, 11.0])
+        self.assertEqual(self.dataset.feature_names, ("feature_0", "feature_1"))
+        self.assertEqual(self.dataset.target_name, "target")
+
+    def test_pool_sampling_is_reproducible_and_without_replacement(self):
+        indices_a = sample_pool_indices(n_rows=20, pool_size=8, seed=31)
+        indices_b = sample_pool_indices(n_rows=20, pool_size=8, seed=31)
+        np.testing.assert_array_equal(indices_a, indices_b)
+        self.assertEqual(len(np.unique(indices_a)), 8)
+
+        pool, source_indices = sample_pool(self.dataset, pool_size=2, seed=31)
+        np.testing.assert_array_equal(pool.features, self.dataset.features[source_indices])
+        np.testing.assert_array_equal(pool.targets, self.dataset.targets[source_indices])
+
+    def test_pool_larger_than_dataset_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "cannot exceed"):
+            sample_pool_indices(n_rows=3, pool_size=4, seed=0)
 
 
 if __name__ == "__main__":
