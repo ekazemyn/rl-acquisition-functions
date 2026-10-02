@@ -69,6 +69,14 @@ class GaussianProcessSurrogate:
         )
         return mean, np.maximum(standard_deviation, 0.0)
 
+    def predict_distribution(self, features):
+        """Return mean, standard deviation, and joint covariance in standardized units."""
+        scaled_features = self.transform_features(features)
+        mean, covariance = self.model.predict(scaled_features, return_cov=True)
+        covariance = (covariance + covariance.T) / 2.0
+        standard_deviation = np.sqrt(np.maximum(np.diag(covariance), 0.0))
+        return mean, standard_deviation, covariance
+
 
 def expected_improvement(mean, standard_deviation, incumbent, xi=0.01):
     """Expected improvement for maximization, with inputs in standardized units."""
