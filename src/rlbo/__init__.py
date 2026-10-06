@@ -15,6 +15,7 @@ from .ppo import (
     train_ppo_on_dataset,
     train_ppo_on_datasets,
 )
+from .benchmark import run_shared_pool_benchmark
 
 __all__ = [
     "PoolOptimizationEnv",
@@ -33,4 +34,5 @@ __all__ = [
     "train_ppo_agent",
     "train_ppo_on_dataset",
     "train_ppo_on_datasets",
+    "run_shared_pool_benchmark",
 ]
